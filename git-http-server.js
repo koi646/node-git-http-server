@@ -11,6 +11,7 @@ var http = require('http');
 var spawn = require('child_process').spawn;
 var path = require('path');
 var url = require('url');
+var auth = require('http-auth');
 
 var accesslog = require('access-log');
 var backend = require('git-http-backend');
@@ -29,6 +30,7 @@ var usage = [
   '  -r, --readonly           [env GIT_HTTP_READONLY] operate in read-only mode',
   '  -u, --updates            check for available updates',
   '  -v, --version            print the version number and exit',
+  '  -a, --auth               select the file htpasswd'
 ].join('\n');
 
 var options = [
@@ -37,7 +39,8 @@ var options = [
   'p:(port)',
   'r(readonly)',
   'u(updates)',
-  'v(version)'
+  'v(version)',
+  'a:(auth)'
 ].join('');
 var parser = new getopt.BasicParser(options, process.argv);
 
@@ -46,13 +49,20 @@ var opts = {
   port: process.env.GIT_HTTP_PORT || 8174,
   readonly: process.env.GIT_HTTP_READONLY,
 };
-var option;
+var option, authfile;
 while ((option = parser.getopt())) {
   switch (option.option) {
     case 'h': console.log(usage); process.exit(0); break;
     case 'H': opts.host = option.optarg; break;
     case 'p': opts.port = option.optarg; break;
     case 'r': opts.readonly = true; break;
+    case 'a': 
+      if (!option.optarg) {
+        authfile = path.resolve(process.cwd(), './auth')
+        break;
+      } else {
+        authfile = path.resolve(__dirname, option.optarg) ;break;
+      }
     case 'u': // check for updates
       require('latest').checkupdate(package, function(ret, msg) {
         console.log(msg);
@@ -65,19 +75,24 @@ while ((option = parser.getopt())) {
 }
 var args = process.argv.slice(parser.optind());
 var dir = args[0];
-
 if (dir)
   process.chdir(dir);
+if (authfile) {
+  var basic = auth.basic({ realm: 'Simon Area.', file: authfile});
+  http.createServer(basic, onrequest).listen(opts.port, opts.host, started);
+} else {
+  http.createServer(onrequest).listen(opts.port, opts.host, started);
+}
 
-http.createServer(onrequest).listen(opts.port, opts.host, started);
 
 function started() {
   console.log('listening on http://%s:%d in %s', opts.host, opts.port, process.cwd());
+  console.log('authfile path: ', authfile)
 }
 
 function onrequest(req, res) {
   accesslog(req, res);
-
+  console.log(req.headers)
   // ensure the user isn't trying to send up a bad request
   var u = url.parse(req.url);
   if (u.pathname !== path.normalize(u.pathname)) {
@@ -107,3 +122,4 @@ function onrequest(req, res) {
     ps.stdout.pipe(service.createStream()).pipe(ps.stdin);
   })).pipe(res);
 }
+
