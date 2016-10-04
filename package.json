@@ -1,14 +1,10 @@
 {
-  "name": "git-http-server",
+  "name": "@tencent/git-http-server",
   "description": "serve a directory of git repositories over http",
-  "version": "0.0.0",
-  "author": "Dave Eddy <dave@daveeddy.com> (http://www.daveeddy.com)",
+  "version": "0.0.1",
+  "author": "koi",
   "contributors": [],
   "preferGlobal": true,
-  "repository": {
-    "type": "git",
-    "url": "git://github.com/bahamas10/node-git-http-server.git"
-  },
   "bin": {
     "git-http-server": "./git-http-server.js"
   },

@@ -10,6 +10,7 @@
 var http = require('http');
 var spawn = require('child_process').spawn;
 var path = require('path');
+var fs = require('fs');
 var url = require('url');
 var auth = require('http-auth');
 
@@ -49,7 +50,7 @@ var opts = {
   port: process.env.GIT_HTTP_PORT || 8174,
   readonly: process.env.GIT_HTTP_READONLY,
 };
-var option, authfile;
+var option, authfile = path.resolve(process.cwd(), './auth');
 while ((option = parser.getopt())) {
   switch (option.option) {
     case 'h': console.log(usage); process.exit(0); break;
@@ -57,12 +58,7 @@ while ((option = parser.getopt())) {
     case 'p': opts.port = option.optarg; break;
     case 'r': opts.readonly = true; break;
     case 'a': 
-      if (!option.optarg) {
-        authfile = path.resolve(process.cwd(), './auth')
-        break;
-      } else {
-        authfile = path.resolve(__dirname, option.optarg) ;break;
-      }
+        authfile = path.resolve(__dirname, option.optarg); break;
     case 'u': // check for updates
       require('latest').checkupdate(package, function(ret, msg) {
         console.log(msg);
@@ -77,22 +73,22 @@ var args = process.argv.slice(parser.optind());
 var dir = args[0];
 if (dir)
   process.chdir(dir);
-if (authfile) {
+if (fs.existsSync(authfile)) {
   var basic = auth.basic({ realm: 'Simon Area.', file: authfile});
   http.createServer(basic, onrequest).listen(opts.port, opts.host, started);
+  console.log('auth文件地址: ', authfile)
 } else {
   http.createServer(onrequest).listen(opts.port, opts.host, started);
+  console.log(authfile, 'auth文件不存在');
 }
 
 
 function started() {
   console.log('listening on http://%s:%d in %s', opts.host, opts.port, process.cwd());
-  console.log('authfile path: ', authfile)
 }
 
 function onrequest(req, res) {
   accesslog(req, res);
-  console.log(req.headers)
   // ensure the user isn't trying to send up a bad request
   var u = url.parse(req.url);
   if (u.pathname !== path.normalize(u.pathname)) {
